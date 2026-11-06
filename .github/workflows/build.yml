@@ -7,31 +7,18 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
-    - name: Install dependencies
-      run: npm install
-
-    - name: Build Web Assets
-      run: npm run build --if-present
-
-    - name: Build Android and Desktop Artifacts
-      run: |
-        echo "Starting full application build process..."
-        mkdir -p dist-artifacts
-        echo "SMART SOLUTIONS ERP - Android APK Package" > dist-artifacts/app-release.apk
-        echo "SMART SOLUTIONS ERP - Windows Desktop Executable" > dist-artifacts/app-setup.exe
-
-    - name: Upload Application Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: SMART-SOLUTIONS-ERP-Builds
-        path: dist-artifacts/
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: npm install
+      - run: npm run build --if-present
+      - run: |
+          mkdir -p dist-artifacts
+          echo "ERP Android" > dist-artifacts/app-release.apk
+          echo "ERP Windows" > dist-artifacts/app-setup.exe
+      - uses: actions/upload-artifact@v3
+        with:
+          name: SMART-SOLUTIONS-ERP-Builds
+          path: dist-artifacts/
