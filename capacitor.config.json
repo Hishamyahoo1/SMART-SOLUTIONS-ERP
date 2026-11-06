@@ -1,0 +1,8 @@
+{
+  "appId": "com.smartsolutions.erp",
+  "appName": "Smart Solutions ERP",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
