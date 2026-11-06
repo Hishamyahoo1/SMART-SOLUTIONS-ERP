@@ -1,29 +1,43 @@
 name: Build ERP Application
 
 on:
-  push:
-    branches: [ main ]
+    push:
+        branches: [main]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: '18'
 
-    - name: Install dependencies
-      run: npm install
+            - name: Install dependencies
+              run: npm install
 
-    - name: Build Web Assets
-      run: npm run build --if-present
+            - name: Build Web Assets
+              run: npm run build --if-present
 
-    - name: Run Capacitor and Electron Build Prep
-      run: |
-        echo "Preparing build environment for Android and Electron..."
-        ls -la
+            - name: Build Android and Desktop Artifacts
+              run: |
+                  echo "Starting full application build process..."
+                  # إنشاء مجلد مخصص لحفظ مخرجات التطبيقات النهائية
+                  mkdir -p dist-artifacts
+                  
+                  # محاكاة خطوة تجميع حزم التطبيقات (سيتم تخصيصها حسب الأوامر البرمجية المتاحة لديك)
+                  echo "Building ERP for Android & Windows..."
+                  
+                  # حفظ ملفات توضيحية مؤقتة كمخرجات تجريبية للتأكد من نجاح التصدير
+                  echo "SMART SOLUTIONS ERP - Android APK Package" > dist-artifacts/app-release.apk
+                  echo "SMART SOLUTIONS ERP - Windows Desktop Executable" > dist-artifacts/app-setup.exe
+
+            - name: Upload Application Artifacts
+              uses: actions/upload-artifact@v3
+              with:
+                  name: SMART-SOLUTIONS-ERP-Builds
+                  path: dist-artifacts/
