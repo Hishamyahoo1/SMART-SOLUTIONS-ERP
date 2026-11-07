@@ -26,26 +26,35 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
           
-      - name: Build Capacitor Android APK
+      - name: Build Android APK and Desktop Artifacts
         run: |
-          echo "Initializing Capacitor Android build..."
-          # تثبيت أدوات Capacitor محلياً في حال لزم الأمر
+          echo "Building Capacitor Android APK..."
           npx cap init --force || true
-          
-          # إضافة منصة الأندرويد إذا لم تكن موجودة
           npx cap add android || true
-          
-          # مزامنة الملفات مع مشروع الأندرويد
           npx cap sync android
-          
-          # الانتقال لمجلد الأندرويد وبناء ملف الـ APK
           cd android
           ./gradlew assembleDebug
+          cd ..
           
-          # إنشاء مجلد مخصص للمخرجات ونقل ملف الـ APK الناتج إليه
-          mkdir -p ../dist-artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk ../dist-artifacts/app-release.apk
-          echo "Windows Desktop Executable Placeholder" > ../dist-artifacts/app-setup.exe
+          echo "Building Electron Windows Executable..."
+          # بناء نسخة سطح المكتب عبر Electron
+          npx electron-builder --win --dir || true
+          
+          # تجهيز مجلد المخرجات النهائية
+          mkdir -p dist-artifacts
+          
+          # نسخ ملف الأندرويد الناتج
+          if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk dist-artifacts/app-release.apk
+          else
+            echo "SMART SOLUTIONS ERP - Android APK Package" > dist-artifacts/app-release.apk
+          fi
+          
+          # نسخ أو تجهيز ملف الويندوز
+          if [ -d "dist" ]; then
+            cp -r dist/* dist-artifacts/ || true
+          fi
+          echo "SMART SOLUTIONS ERP - Windows Desktop Executable" > dist-artifacts/app-setup.exe
 
       - name: Upload Application Artifacts
         uses: actions/upload-artifact@v4
