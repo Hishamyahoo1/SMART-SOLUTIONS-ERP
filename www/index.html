@@ -60,10 +60,10 @@ if(!D){try{const o=JSON.parse(localStorage.getItem('acc_v1'));if(o){D={items:o.i
  o.buy.forEach(b=>{const it=o.items.find(i=>i.id==b.itemId);D.buy.push({id:b.id,date:b.date,pid:0,total:b.total,paid:b.total,lines:[{itemId:b.itemId,name:b.name,unit:b.unit,qty:b.qty,price:b.price,total:b.total,base:b.qty*(it?fac(it,b.unit):1)}]})});
  o.sell.forEach(s=>D.sell.push({id:s.id,date:s.date,pid:0,total:s.total,paid:s.total,cost:s.cost,lines:[{...s}]}))}}catch(e){}}
 D=D||{items:[],parties:[],buy:[],sell:[],ret:[],cash:[],seq:1};D.ret=D.ret||[];D.pret=D.pret||[];
-const save=()=>{try{ensureAccs()}catch(e){}try{stamp()}catch(e){}try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}};
+const save=()=>{try{syncKick()}catch(e){}try{ensureAccs()}catch(e){}try{stamp()}catch(e){}try{localStorage.setItem(K,JSON.stringify(D))}catch(e){}};
 /* ===== مزامنة: معرّف ثابت (uid) وتاريخ تعديل (mt) لكل سجل + رصد الحذف ===== */
 const uid=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36);
-const SIG={},COLS=[['item','items'],['party','parties'],['buy','buy'],['sell','sell'],['ret','ret'],['pret','pret'],['cash','cash']];
+const SIG={},COLS=[['item','items'],['party','parties'],['buy','buy'],['sell','sell'],['ret','ret'],['pret','pret'],['cash','cash'],['jv','jv']];
 const tracked=(t,x)=>t!='cash'||!String(x.ref||'').startsWith('inv:');
 const sigOf=(t,x)=>{const o={};for(const k in x)if(k!='mt'&&k!='uid'&&!(t=='item'&&(k=='qty'||k=='cost'))&&!(t=='party'&&k=='acc'))o[k]=x[k];return JSON.stringify(o)};
 function stamp(init){const now=Date.now(),seen=new Set();D.del=D.del||[];
@@ -426,7 +426,7 @@ const _vs4=V.settings;V.settings=()=>_vs4()+`<div class="card"><h3>القوائ�
 ${MODS.filter(m=>can(m[0],1)&&m[0]!='settings').map(m=>`<div style="margin:8px 0"><label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" style="width:auto" ${hid(m[0])?'':'checked'} onchange="menuSet('${m[0]}',this.checked)"> ${m[1]}</label>${m[2].length>1?`<div style="margin:4px 24px;display:flex;gap:14px;flex-wrap:wrap">${m[2].map(k=>`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" style="width:auto" ${hid(k)?'':'checked'} onchange="menuSet('${k}',this.checked)"> ${SUBN[k]||k}</label>`).join('')}</div>`:''}</div>`).join('')}</div>`;
 
 /* ===== v27: عرض رقم النسخة وإشعار التحديث ===== */
-const APPV='35';
+const APPV='36';
 function updBanner(){if($('#updb'))return;document.body.insertAdjacentHTML('afterbegin','<div id="updb" style="position:sticky;top:0;z-index:260;background:#d1e7dd;color:#0f5132;padding:8px 14px;font-size:14px">يتوفر إصدار أحدث من النظام. <button class="btn s" onclick="location.reload()">تحديث الآن</button> <span class="mu">(احفظ ما تعمل عليه أولاً)</span></div>')}
 $('#nav').insertAdjacentHTML('beforebegin','<div class="mu" id="verbar" style="padding:0 16px;font-size:11px">رقم النسخة: '+APPV+'</div>');
 
@@ -719,7 +719,7 @@ const pvGroup=id=>{const c=D.cash.find(x=>x.id==id);return c?(c.grp?D.cash.filte
 function payVSave(){pvSync();const L=(C.pv||[]).map(l=>({k:l.k,am:+l.am||0,nt:(l.nt||'').trim()})).filter(l=>l.k&&l.am>0);
  if(!L.length)return alert('أضف طرفاً مدينًا واحداً على الأقل مع المبلغ');
  const cc=C.vc||'',rt=cc?(+C.vr||fxRate(cc)):1,date=C.dt||today(),fd=C.fd||'';if(!C.pgid&&!gate())return;
- const old=C.pgid?pvGroup(C.pgid):[],vno=C.pvno||newVno('out'),grp=C.pgrp||('g'+(D.seq++)),by=(old[0]&&old[0].by)||curBy(),oatt=(old.find(c=>c.att)||{}).att||[];
+ const old=C.pgid?pvGroup(C.pgid):[],vno=C.pvno||newVno('out'),grp=C.pgrp||('g'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),by=(old[0]&&old[0].by)||curBy(),oatt=(old.find(c=>c.att)||{}).att||[];
  if(old.length){const ids=new Set(old.map(c=>c.id));D.cash=D.cash.filter(c=>!ids.has(c.id))}
  L.forEach((l,i)=>{const isP=l.k[0]=='p',pid=isP?+l.k.slice(2):0,acc=isP?'':l.k.slice(2),p=party(pid),rec={id:D.seq++,date,type:'out',amount:+(l.am*rt).toFixed(4),note:l.nt||(p?'دفع إلى '+p.name:acName(acc)),pid,ref:pid?'pay':'',vno,by,grp};
   if(!isP)rec.acc=acc;if(fd&&fd!='1010')rec.fd=fd;if(cc){rec.cc=cc;rec.rt=rt;rec.fa=l.am}
@@ -735,7 +735,7 @@ glReg('pay',{title:'سندات الصرف',rows:payRows,sc:'date',sd:-1,h0:{by:1
  count:'عدد السندات',sums:[['amount','المبلغ']],add:'＋ سند صرف جديد',onAdd:()=>{LS.pay.form=true;CE=null;go(tab)},open:payPrint,acts:()=>[['v','استعراض'],['e','تعديل'],['d','حذف']],do:(a,id)=>{if(a=='v')payPrint(id);else if(a=='e')payEdit(id);else if(a=='d')payDel(id)}});
 const _ec2=editCash;editCash=function(id){const c=D.cash.find(x=>x.id==id);if(c&&c.type=='out')return payEdit(id);_ec2(id)};
 /* --- الإقفال السنوي وقفل الفترات --- */
-const _et=ensureTax;ensureTax=function(){_et();if(!AC('3020'))D.coa.push({code:'3020',name:'الأرباح المبقاة (نتائج الأعوام المقفلة)',type:(AC('3010')||{type:'eq'}).type,sys:1})};ensureTax();
+const _et=ensureTax;ensureTax=function(){_et();if(!AC('3030'))D.coa.push({code:'3030',name:'الأرباح المبقاة (نتائج الأعوام المقفلة)',type:(AC('3010')||{type:'eq'}).type,sys:1});(D.jv||[]).forEach(j=>{if(j.cl)j.lines.forEach(l=>{if(l.acc=='3020'&&/^ترحيل/.test(l.nt||''))l.acc='3030'})})};ensureTax();
 MODS.find(m=>m[0]=='acct')[2].push('cls');SUBN.cls='الإقفال السنوي';
 const clsYears=()=>[...new Set(journal().filter(l=>l.date>'1900').map(l=>l.date.slice(0,4)))].sort();
 const clsNext=()=>D.lock?+D.lock.slice(0,4)+1:(clsYears()[0]?+clsYears()[0]:+today().slice(0,4));
@@ -744,7 +744,7 @@ function clsCalc(Y){const J=journal().filter(l=>l.date<=Y+'-12-31'),L=[];let rev
  return {L,rev,exp,np:rev-exp}}
 function closeYear(){const Y=clsNext(),r=clsCalc(Y);if(!r.L.length)return alert('لا توجد أرصدة إيرادات أو مصروفات لإقفالها في سنة '+Y);
  if(!confirm('إقفال سنة '+Y+': صافي الربح '+f(r.np)+'. سيُنشأ قيد إقفال ويُمنع إضافة أو تعديل أو حذف أي مستند بتاريخ حتى 31-12-'+Y+'. متابعة؟'))return;
- const lines=r.L.map(l=>({acc:l.acc,dr:l.dr,cr:l.cr,nt:'إقفال'}));lines.push(r.np>=0?{acc:'3020',dr:0,cr:r.np,nt:'ترحيل صافي الربح'}:{acc:'3020',dr:-r.np,cr:0,nt:'ترحيل صافي الخسارة'});
+ const lines=r.L.map(l=>({acc:l.acc,dr:l.dr,cr:l.cr,nt:'إقفال'}));lines.push(r.np>=0?{acc:'3030',dr:0,cr:r.np,nt:'ترحيل صافي الربح'}:{acc:'3030',dr:-r.np,cr:0,nt:'ترحيل صافي الخسارة'});
  D.jv=D.jv||[];D.jv.push({id:D.seq++,date:Y+'-12-31',desc:'قيد إقفال السنة '+Y,lines,cl:Y,by:curBy()});D.lock=Y+'-12-31';save();go('cls')}
 function reopenYear(){if(!D.lock)return;const Y=+D.lock.slice(0,4);if(!confirm('إلغاء إقفال سنة '+Y+'؟ سيُحذف قيد الإقفال وتُفتح الفترة للتعديل.'))return;
  D.jv=(D.jv||[]).filter(j=>j.cl!=Y);const prev=(D.jv||[]).filter(j=>j.cl).map(j=>j.cl).sort().pop();D.lock=prev?prev+'-12-31':'';save();go('cls')}
@@ -830,6 +830,62 @@ function fileChoice(name,json,msg){return new Promise(res=>{const o=document.cre
  o.querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{const a=b.dataset.a;o.remove();if(a=='x')return res(false);if(a=='save'){dl(name,json,'application/json');return res(true)}res(await share(a))}))})}
 shareFile=function(name,json){return fileChoice(name,json,'ملف بيانات Smart ERP — افتح التطبيق > النسخ الاحتياطي > استيراد تحديث (دمج)')};
 bkExport=function(){fileChoice('backup-'+today()+'.json',JSON.stringify({app:'acc',v:2,at:new Date().toISOString(),data:D}),'نسخة احتياطية — '+coName()+' ('+today()+')')};
+/* ===== v36: المزامنة التلقائية عبر Firebase Realtime Database (مشفّرة) ===== */
+const SYK='acc_sync';
+let SYC=(()=>{try{return JSON.parse(localStorage.getItem(SYK)||'null')||{}}catch(e){return {}}})();
+const sycSave=()=>{try{localStorage.setItem(SYK,JSON.stringify(SYC))}catch(e){}};
+let SYS={st:SYC.url?'idle':'off',msg:'',t:0,busy:false,again:false,key:null,kp:null,es:null,timer:null,kick:null,ver:null};
+const syOn=()=>!!(SYC.url&&SYC.pass&&SYC.on);
+const b64e=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)},b64d=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+async function sycKey(){if(SYS.key&&SYS.kp==SYC.pass)return SYS.key;const en=new TextEncoder(),km=await crypto.subtle.importKey('raw',en.encode(SYC.pass),'PBKDF2',false,['deriveKey']);
+ SYS.key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:en.encode('smart-erp-sync-v1'),iterations:150000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);SYS.kp=SYC.pass;return SYS.key}
+async function sycRoom(){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('room:'+SYC.pass));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,40)}
+async function sycEnc(text){const k=await sycKey(),iv=crypto.getRandomValues(new Uint8Array(12)),ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,new TextEncoder().encode(text))),o=new Uint8Array(12+ct.length);o.set(iv);o.set(ct,12);return b64e(o)}
+async function sycDec(t){const k=await sycKey(),u=b64d(t),pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:u.slice(0,12)},k,u.slice(12));return new TextDecoder().decode(pt)}
+const syU=(p,q)=>SYC.url.replace(/\/+$/,'')+'/rooms/'+SYC.room+p+'.json'+(q||'');
+async function syReq(m,p,b,q){const r=await fetch(syU(p,q),{method:m,body:b===undefined?undefined:JSON.stringify(b)});if(!r.ok){const e=new Error('HTTP '+r.status);e.code=r.status;throw e}return r.json()}
+const syQ=(o)=>'?'+Object.entries(o).map(([k,v])=>k+'='+encodeURIComponent(typeof v=='string'?'"'+v+'"':v)).join('&');
+function syncUI(){let e=$('#sybar');if(!e){const n=$('#nav');if(!n)return;n.insertAdjacentHTML('beforebegin','<div id="sybar" class="mu" style="padding:0 16px;font-size:12px"></div>');e=$('#sybar')}
+ if(!SYC.url||!SYC.on){e.innerHTML='';return}const tx={ok:'☁ متزامن',busy:'☁ جارٍ المزامنة…',offline:'☁ غير متصل — ستُرسل التغييرات عند عودة الاتصال',err:'☁ خطأ في المزامنة: '+(SYS.msg||''),idle:'☁ المزامنة مفعّلة'}[SYS.st]||'';
+ e.innerHTML=tx+(SYS.t&&SYS.st=='ok'?' '+new Date(SYS.t).toLocaleTimeString('ar'):'')+' <a href="#" onclick="syncRun();return false">مزامنة الآن</a>'}
+async function syncPull(){const log=await syReq('GET','/log',undefined,SYC.last?syQ({orderBy:'$key',startAt:SYC.last}):syQ({orderBy:'$key'})).catch(e=>{if(e.code==400)throw new Error('أضف قواعد الأمان ومؤشر الفهرسة كما في التعليمات');throw e});
+ let keys=Object.keys(log||{}).sort();if(!keys.length)return 0;
+ let sk=null;keys.forEach(k=>{if(log[k]&&log[k].s)sk=k});
+ let from=SYC.last||'';if(sk&&(!from||sk>from))keys=keys.filter(k=>k>=sk);else keys=keys.filter(k=>!from||k>from);
+ let n=0;const mine=SYC.dev;
+ for(const k of keys){const en=log[k];if(!en||!en.p)continue;if(en.d!=mine){let P;try{P=JSON.parse(await sycDec(en.p))}catch(e){throw new Error('الرمز السري لا يطابق بيانات الغرفة')}bkMerge(P.data,{silent:true});n++}SYC.last=k}
+ sycSave();SYS.sinceSnap=keys.filter(k=>!(log[k]&&log[k].s)).length+(SYS.sinceSnap||0);return n}
+async function syncPush(snap){if(!snap&&!syncPending())return false;const P=syncPack(!!snap),txt=JSON.stringify(P,(k,v)=>k=='att'?undefined:v);
+ if(txt.length>8e6)throw new Error('حجم البيانات كبير جداً للمزامنة التلقائية');
+ const body={d:SYC.dev,t:Date.now(),p:await sycEnc(txt)};if(snap)body.s=1;
+ const r=await syReq('POST','/log',body);D.sync={last:P.ts};save();SYS.ver=r.name;try{await syReq('PUT','/ver',r.name)}catch(e){}return true}
+async function syncCompact(){const ok=await syncPush(true);if(!ok)return;const all=await syReq('GET','/log',undefined,'?shallow=true'),ks=Object.keys(all||{}).sort(),sn=await syReq('GET','/log',undefined,syQ({orderBy:'s',equalTo:1,limitToLast:1}));const sk=Object.keys(sn||{}).sort().pop();if(!sk)return;
+ const old=ks.filter(k=>k<sk),del={};old.forEach(k=>del[k]=null);if(old.length)await syReq('PATCH','/log',del);SYS.sinceSnap=0}
+async function syncRun(){if(!syOn())return;if(SYS.busy){SYS.again=true;return}SYS.busy=true;SYS.st='busy';syncUI();
+ try{if(!navigator.onLine)throw Object.assign(new Error('offline'),{off:1});if(!SYC.room)SYC.room=await sycRoom();if(!SYC.dev){SYC.dev='d'+Math.random().toString(36).slice(2,10);sycSave()}
+  const got=await syncPull();await syncPush(false);if((SYS.sinceSnap||0)>150)await syncCompact();
+  SYS.st='ok';SYS.t=Date.now();SYS.msg='';if(got)safeRefresh()}
+ catch(e){if(e.off||e instanceof TypeError){SYS.st='offline'}else{SYS.st='err';SYS.msg=e.message||String(e)}}
+ SYS.busy=false;syncUI();if(SYS.again){SYS.again=false;setTimeout(syncRun,500)}}
+function syncKick(){if(!syOn())return;clearTimeout(SYS.kick);SYS.kick=setTimeout(syncRun,3000)}
+function syncStream(){if(typeof EventSource=='undefined'||!syOn()||!SYC.room)return;try{if(SYS.es)SYS.es.close();const es=new EventSource(syU('/ver'));SYS.es=es;
+ es.addEventListener('put',ev=>{try{const d=JSON.parse(ev.data).data;if(d&&d!==SYS.ver){SYS.ver=d;syncRun()}}catch(e){}});es.onerror=()=>{}}catch(e){}}
+async function syncStart(){if(!syOn())return;try{if(!SYC.room)SYC.room=await sycRoom()}catch(e){return}syncRun();syncStream();clearInterval(SYS.timer);SYS.timer=setInterval(syncRun,30000)}
+async function syncSaveCfg(){const url=v('sy_url').trim(),pass=v('sy_pass');if(!/^https:\/\/.+/.test(url))return alert('أدخل رابط قاعدة البيانات (يبدأ بـ https://)');if(pass.length<8)return alert('الرمز السري 8 خانات على الأقل (يُفضّل 12 فأكثر)');
+ if(!(window.crypto&&crypto.subtle))return alert('المتصفح لا يدعم التشفير المطلوب (يلزم اتصال آمن HTTPS)');
+ if(SYC.pass!=pass)SYC.last='';SYC.url=url.replace(/\/+$/,'');SYC.pass=pass;SYC.on=1;SYC.room='';SYS.key=null;sycSave();go('backup',1);await syncStart()}
+function syncOff(){if(!confirm('إيقاف المزامنة التلقائية على هذا الجهاز؟ بياناتك تبقى كما هي.'))return;SYC.on=0;sycSave();try{SYS.es&&SYS.es.close()}catch(e){}clearInterval(SYS.timer);SYS.st='off';syncUI();go('backup',1)}
+async function syncCompactBtn(){if(!confirm('إنشاء لقطة كاملة وتنظيف السجل القديم؟'))return;SYS.busy=true;syncUI();try{await syncCompact();SYS.st='ok';SYS.t=Date.now()}catch(e){SYS.st='err';SYS.msg=e.message}SYS.busy=false;syncUI();go('backup',1)}
+const SYRULES='{\n  "rules": {\n    ".read": false,\n    ".write": false,\n    "rooms": {\n      "$room": {\n        ".read": true,\n        ".write": true,\n        "log": { ".indexOn": ["s", "t"] }\n      }\n    }\n  }\n}';
+{const o=V.backup;V.backup=function(){return o.apply(this,arguments)+`<div class="card"><h3>المزامنة التلقائية بين الأجهزة (Firebase)</h3><div class="mu">تُرسَل تغييراتك مشفّرة إلى قاعدة بيانات Firebase خاصة بك وتصل لبقية الأجهزة تلقائياً. البيانات تُشفَّر داخل التطبيق بالرمز السري قبل الإرسال، فلا يقرؤها أحد غيرك. أدخل الرابط والرمز السري نفسيهما على كل جهاز.</div>
+<div class="g" style="margin-top:8px"><div><label>رابط قاعدة البيانات</label><input id="sy_url" dir="ltr" placeholder="https://xxxx-default-rtdb.firebaseio.com" value="${esc(SYC.url||'')}"></div><div><label>الرمز السري للمزامنة (احفظه، لا يمكن استرجاعه)</label><input id="sy_pass" type="password" autocomplete="new-password" value="${esc(SYC.pass||'')}"></div><button class="btn" onclick="syncSaveCfg()">${syOn()?'حفظ وإعادة المزامنة':'تفعيل المزامنة'}</button></div>
+<div class="row" style="margin-top:8px">${syOn()?`<button class="btn s" onclick="syncRun()">مزامنة الآن</button><button class="btn s" onclick="syncCompactBtn()">لقطة كاملة وتنظيف السجل</button><button class="btn s d" onclick="syncOff()">إيقاف المزامنة</button>`:''}</div>
+<div class="mu" style="margin-top:8px">الحالة: <b>${{off:'متوقفة',idle:'مفعّلة',ok:'متزامن',busy:'جارٍ المزامنة',offline:'غير متصل',err:'خطأ: '+esc(SYS.msg||'')}[SYS.st]||''}</b></div>
+<details style="margin-top:8px"><summary><b>طريقة إعداد Firebase (مرة واحدة)</b></summary><ol class="mu" style="line-height:2"><li>ادخل console.firebase.google.com بحساب Google، وأنشئ مشروعاً جديداً (Add project).</li><li>من القائمة: Build ← Realtime Database ← Create Database، واختر المنطقة الأقرب لك، ثم ابدأ في وضع الاختبار.</li><li>افتح تبويب Rules، والصق القواعد التالية مكان الموجود، ثم Publish:<pre dir="ltr" style="background:#0001;padding:8px;overflow:auto">${esc(SYRULES)}</pre></li><li>انسخ رابط قاعدة البيانات من أعلى صفحة Data، وألصقه هنا مع رمز سري طويل.</li><li>على كل جهاز آخر: افتح هذه الشاشة وأدخل الرابط والرمز نفسيهما.</li></ol><div class="mu">نصائح: استخدم بادئة ترقيم مختلفة لكل جهاز (الإعدادات ← ترقيم المستندات) لتجنب تكرار الأرقام. أنشئ الحسابات والصناديق من جهاز واحد. المرفقات لا تُزامَن تلقائياً.</div></details></div>`}}
+if(typeof document!='undefined'&&!VIEW){setTimeout(()=>{syncUI();syncStart()},2000);addEventListener('online',()=>syncKick());document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncKick()})}
+
+function safeRefresh(){try{const ae=document.activeElement,inForm=(tab=='buy'&&LS[BM]&&LS[BM].form)||(tab=='sell'&&LS[SM]&&LS[SM].form)||(tab=='rcv'&&LS.rcv.form)||(tab=='pay'&&LS.pay.form)||(tab=='jr'&&LS.jr.form)||tab=='items';if(!inForm&&!(ae&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName)))go(tab,1)}catch(e){}}
+['syncSaveCfg','syncOff','syncCompactBtn'].forEach(n=>{const o=window[n];window[n]=function(){if(!can('backup','e')){alert('لا تملك صلاحية التعديل في هذا القسم.');return}return o.apply(this,arguments)}});
 let AR='sell',AF='',AT='';
 const tbl=(h,r)=>`<div class="w"><table><tr>${h.map(x=>'<th>'+x+'</th>').join('')}</tr>${r.map(x=>'<tr>'+x.map(y=>'<td>'+y+'</td>').join('')+'</tr>').join('')}</table></div>`;
 V.act=()=>{const O={sell:'المبيعات',buy:'المشتريات',cust:'العملاء',sup:'الموردون',stock:'المخزون',box:'الصناديق',bank:'البنوك',wallet:'المحافظ الإلكترونية',imv:'حركات الأصناف',exp:'صلاحية الأصناف',stk:'تنبيهات المخزون (صلاحية ونواقص)'},ir=d=>(!AF||d>=AF)&&(!AT||d<=AT),pn=x=>x.pid&&party(x.pid)?esc(party(x.pid).name):'نقدي',sm=(a,g)=>a.reduce((s,x)=>s+g(x),0);let h='';
@@ -1054,7 +1110,7 @@ function trashRestore(i){const t=(D.trash||[])[i];if(!t)return;const k=t.k,x=t.r
  D.del=(D.del||[]).filter(d=>d.uid!=x.uid);D.trash.splice(i,1);save();go('trash')}
 function trashPurge(i){if(!confirm('حذف نهائي من القائمة؟ لا يمكن التراجع.'))return;D.trash.splice(i,1);save();go('trash')}
 function trashClear(){if(!confirm('تفريغ كل المحذوفات نهائياً؟ لا يمكن التراجع.'))return;D.trash=[];save();go('trash')}
-function bkMerge(B){const map={},pmap={},fresh=new Set(),n={i:0,s:0,p:0,v:0,c:0,u:0,d:0};D.del=D.del||[];
+function bkMerge(B,opt){const map={},pmap={},fresh=new Set(),n={i:0,s:0,p:0,v:0,c:0,u:0,d:0};D.del=D.del||[];D.jv=D.jv||[];
  const tomb={};D.del.forEach(d=>{tomb[d.uid]=Math.max(tomb[d.uid]||0,d.mt||0)});
  const adopt=(t,r,u)=>{if(r.uid&&r.uid!=u)delete SIG[r.uid];r.uid=u;SIG[u]={s:sigOf(t,r),t}};
  const reg=(t,r)=>{if(r.uid)SIG[r.uid]={s:sigOf(t,r),t}};
@@ -1063,13 +1119,13 @@ function bkMerge(B){const map={},pmap={},fresh=new Set(),n={i:0,s:0,p:0,v:0,c:0,
  (B.items||[]).forEach(i=>{let e=i.uid&&D.items.find(x=>x.uid==i.uid);
   if(!e){e=D.items.find(x=>(i.barcode&&x.barcode==i.barcode)||x.name.trim()==String(i.name).trim());if(e&&i.uid)adopt('item',e,i.uid)}
   if(e){map[i.id]=e;
-   if(i.uid&&(i.mt||0)>(e.mt||0)){e.name=i.name;e.units=i.units;e.price=i.price;if(i.barcode&&!bcDup(i.barcode,e.id))e.barcode=i.barcode;e.mt=i.mt;reg('item',e);n.u++}
+   if(i.uid&&(i.mt||0)>(e.mt||0)){e.name=i.name;e.units=i.units;e.price=i.price;e.ty=i.ty;e.neg=i.neg;e.ex=i.ex;e.ro=i.ro;if(i.barcode&&!bcDup(i.barcode,e.id))e.barcode=i.barcode;e.mt=i.mt;reg('item',e);n.u++}
    else if(!e.barcode&&i.barcode&&!bcDup(i.barcode,e.id))e.barcode=i.barcode;
    n.s++}
   else{const o={...i,id:D.seq++};D.items.push(o);map[i.id]=o;fresh.add(o.id);reg('item',o);n.i++}});
  (B.parties||[]).forEach(p=>{let e=p.uid&&D.parties.find(x=>x.uid==p.uid);
   if(!e){e=D.parties.find(x=>x.name==p.name&&x.kind==p.kind);if(e&&p.uid)adopt('party',e,p.uid)}
-  if(e){pmap[p.id]=e.id;if(p.uid&&(p.mt||0)>(e.mt||0)){e.name=p.name;e.phone=p.phone||'';e.mt=p.mt;reg('party',e);n.u++}}
+  if(e){pmap[p.id]=e.id;if(p.uid&&(p.mt||0)>(e.mt||0)){e.name=p.name;e.phone=p.phone||'';e.em=p.em;e.mt=p.mt;reg('party',e);n.u++}}
   else{const o={...p,id:D.seq++};D.parties.push(o);pmap[p.id]=o.id;reg('party',o);n.p++}});
  const pn=id=>{const p=(B.parties||[]).find(x=>x.id==id);return p?p.name+'/'+p.kind:''},pnc=id=>{const p=party(id);return p?p.name+'/'+p.kind:''};
  const fp=(k,x,nm)=>[k,x.date,nm,x.total,x.lines.map(l=>l.name+'|'+l.unit+'|'+l.qty+'|'+l.price).join(';')].join('#');
@@ -1091,24 +1147,27 @@ function bkMerge(B){const map={},pmap={},fresh=new Set(),n={i:0,s:0,p:0,v:0,c:0,
  (B.cash||[]).filter(c=>!isInv(c)).forEach(c=>{let e=c.uid&&D.cash.find(y=>y.uid==c.uid);const f1=cf(c,pn(c.pid)),pid=c.pid?(pmap[c.pid]||0):0;
   if(!e){const g=hc.get(f1);if(g){if(c.uid&&g.uid!=c.uid)adopt('cash',g,c.uid);return}
    if(c.uid&&tomb[c.uid]!=null&&tomb[c.uid]>=(c.mt||0))return}
-  if(e){if(!((c.mt||0)>(e.mt||0)))return;Object.assign(e,{date:c.date,amount:c.amount,note:c.note,pid,ref:c.ref||'',acc:c.acc,mt:c.mt});reg('cash',e);n.u++;return}
-  addCash(c.type,c.amount,c.note,c.date,pid,c.ref||'',c.vno?newVno(c.type):'');
-  const r=D.cash[D.cash.length-1];if(c.acc)r.acc=c.acc;if(c.uid){r.uid=c.uid;r.mt=c.mt||0;reg('cash',r);live(c.uid)}hc.set(f1,r);n.c++});
- (B.del||[]).forEach(d=>{if(!d||!d.uid||!['buy','sell','ret','cash'].includes(d.t))return;
+  if(e){if(!((c.mt||0)>(e.mt||0)))return;Object.assign(e,{date:c.date,amount:c.amount,note:c.note,pid,ref:c.ref||'',acc:c.acc,vno:c.vno,fd:c.fd,cc:c.cc,rt:c.rt,fa:c.fa,by:c.by,grp:c.grp,mt:c.mt});reg('cash',e);n.u++;return}
+  addCash(c.type,c.amount,c.note,c.date,pid,c.ref||'',c.vno||'');
+  const r=D.cash[D.cash.length-1];if(c.acc)r.acc=c.acc;['fd','cc','rt','fa','by','grp'].forEach(k=>{if(c[k]!==undefined)r[k]=c[k]});if(c.uid){r.uid=c.uid;r.mt=c.mt||0;reg('cash',r);live(c.uid)}hc.set(f1,r);n.c++});
+ (B.jv||[]).forEach(j=>{if(!j||!j.uid||j.cl)return;let e=D.jv.find(y=>y.uid==j.uid);const L=(j.lines||[]).map(l=>{const o={...l};if(l.pu){const p=D.parties.find(x=>x.uid==l.pu);if(p&&p.acc)o.acc=p.acc}delete o.pu;return o});
+  if(!e){if(tomb[j.uid]!=null&&tomb[j.uid]>=(j.mt||0))return;const r={...j,id:D.seq++,lines:L};D.jv.push(r);reg('jv',r);live(j.uid);n.v++;return}
+  if((j.mt||0)>(e.mt||0)){Object.assign(e,{...j,id:e.id,lines:L});reg('jv',e);n.u++}});
+ (B.del||[]).forEach(d=>{if(!d||!d.uid||!['buy','sell','ret','pret','cash','jv'].includes(d.t))return;
   const r=D[d.t].find(x=>x.uid==d.uid);
-  if(r&&(r.mt||0)<=(d.mt||0)){trashAdd(d.t,r);if(d.t=='cash')D.cash=D.cash.filter(x=>x!==r);else rev(d.t,r.id);delete SIG[d.uid];n.d++}
+  if(r&&(r.mt||0)<=(d.mt||0)){if(d.t=='jv')D.jv=D.jv.filter(x=>x!==r);else{trashAdd(d.t,r);if(d.t=='cash')D.cash=D.cash.filter(x=>x!==r);else rev(d.t,r.id)}delete SIG[d.uid];n.d++}
   else if(r)return;
   if(!D.del.some(x=>x.uid==d.uid))D.del.push({uid:d.uid,t:d.t,mt:d.mt||0})});
- save();go('backup');
+ save();if(opt&&opt.silent)return n;go('backup');
  alert('تم الدمج:\nأصناف جديدة: '+n.i+'\nحسابات جديدة: '+n.p+'\nفواتير جديدة: '+n.v+'\nحركات صندوق جديدة: '+n.c+'\nسجلات معدّلة: '+n.u+'\nسجلات محذوفة: '+n.d)}
 
 /* ===== إرسال نسخة / التغييرات إلى مستخدم آخر ===== */
 function syncPack(full){const last=full?0:(D.sync&&D.sync.last)||0,nw=x=>!last||(x.mt||0)>last,at=Date.now();
  return {app:'acc',kind:'sync',v:3,mode:full?'full':'delta',at:new Date(at).toISOString(),ts:at,from:last,
   data:{coa:D.coa,items:D.items,parties:D.parties,buy:D.buy.filter(nw),sell:D.sell.filter(nw),ret:D.ret.filter(nw),pret:D.pret.filter(nw),
-   cash:D.cash.filter(c=>!String(c.ref||'').startsWith('inv:')&&nw(c)),del:(D.del||[]).filter(nw),rc:D.rc||0,pc:D.pc||0,seq:D.seq}}}
+   cash:D.cash.filter(c=>!String(c.ref||'').startsWith('inv:')&&nw(c)),jv:(D.jv||[]).filter(j=>!j.cl&&nw(j)).map(j=>({...j,lines:j.lines.map(l=>{const a=AC(l.acc),p=a&&a.party?party(a.party):null;return p&&p.uid?{...l,pu:p.uid}:l})})),del:(D.del||[]).filter(nw),rc:D.rc||0,pc:D.pc||0,seq:D.seq}}}
 function syncPending(){const last=(D.sync&&D.sync.last)||0,nw=x=>!last||(x.mt||0)>last;
- return D.buy.concat(D.sell,D.ret,D.cash.filter(c=>!String(c.ref||'').startsWith('inv:'))).filter(nw).length+(D.del||[]).filter(nw).length}
+ return D.buy.concat(D.sell,D.ret,D.pret,(D.jv||[]).filter(j=>!j.cl),D.items,D.parties,D.cash.filter(c=>!String(c.ref||'').startsWith('inv:'))).filter(nw).length+(D.del||[]).filter(nw).length}
 async function shareFile(name,json){let fl;
  for(const t of ['application/json','text/plain']){try{fl=new File([json],name,{type:t});if(navigator.canShare&&navigator.canShare({files:[fl]})){await navigator.share({files:[fl],title:name,text:'ملف بيانات Smart ERP — افتح التطبيق > النسخ الاحتياطي > استيراد تحديث (دمج)'});return true}}catch(e){if(e&&e.name=='AbortError')return false}}
  dl(name,json,'application/json');return true}
