@@ -6,7 +6,7 @@
   "author": "Smart Solutions",
   "scripts": {
     "electron": "electron .",
-    "dist:win": "electron-builder --win --x64"
+    "dist:win": "electron-builder --win"
   },
   "dependencies": {
     "@capacitor/android": "^5.7.0",
@@ -32,19 +32,14 @@
     ],
     "win": {
       "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64", "ia32"]
-        },
+        "nsis",
         "portable"
       ],
       "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "allowToChangeInstallationDirectory": true
     }
   }
 }
